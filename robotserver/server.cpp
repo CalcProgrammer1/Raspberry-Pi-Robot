@@ -26,6 +26,9 @@ int main(int argc, char *argv[])
     int                 yes;
     sockaddr_storage    their_addr;
 
+    //Servoblaster file pointer
+    FILE *              servoblaster;
+
     //Joystick pad data
     padData             pad;
 
@@ -79,6 +82,16 @@ int main(int argc, char *argv[])
 
     cout << "Connection from " << their_ip << "!" << endl;
 
+    //Open servoblaster
+    servoblaster = fopen( "/dev/servoblaster", "w" );
+
+    if( servoblaster == NULL )
+    {
+        cout << "Error opening servoblaster, is servod running?" << endl;
+        return 0;
+    }
+
+    //Receive first packet
     numbytes = recv(clientfd,&pad,sizeof pad,0);
 
     while( numbytes == sizeof( pad ) )
@@ -170,17 +183,17 @@ int main(int argc, char *argv[])
         }
 
         //Write out servo strings
-        sprintf( servo_str, "echo 0=%d\% > /dev/servoblaster", (int)( 100 - axis_1 ) );
-        system( servo_str );
+        fprintf( servoblaster, "0=%d\%\n", (int)( 100 - axis_1 ) );
+        fflush( servoblaster );
 
-        sprintf( servo_str, "echo 1=%d\% > /dev/servoblaster", (int)axis_3 );
-        system( servo_str );
+        fprintf( servoblaster, "1=%d\%\n", (int)axis_3 );
+        fflush( servoblaster );
 
-        sprintf( servo_str, "echo 3=%f\% > /dev/servoblaster", 100.0f - camera_x );
-        system( servo_str );
+        fprintf( servoblaster, "3=%f\%\n", 100.0f - camera_x );
+        fflush( servoblaster );
 
-        sprintf( servo_str, "echo 4=%f\% > /dev/servoblaster", 100.0f - camera_y );
-        system( servo_str );
+        fprintf( servoblaster, "4=%f\%\n", 100.0f - camera_y );
+        fflush( servoblaster );
 
         //Receive the next packet
         numbytes = recv(clientfd,&pad,sizeof pad,0);
