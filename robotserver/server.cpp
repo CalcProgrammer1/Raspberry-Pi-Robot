@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <pthread.h>
 #include "joystick.h"
 
 using namespace std;
@@ -14,6 +15,15 @@ using namespace std;
 #define PORT "3400"
 #define TRUE 1
 #define FALSE 0
+
+char *their_ip;
+
+void * open_camera( void *arg )
+{
+    char camera_str[512];
+    sprintf( camera_str, "raspivid -t 0 -fps 25 -hf -vf -w 1280 -h 720 -b 10000000 -o - | nc -u %s 5001", their_ip );
+    system( camera_str );
+}
 
 int main(int argc, char *argv[])
 {
@@ -38,6 +48,9 @@ int main(int argc, char *argv[])
 
     //Camera stream status
     char                camera_streaming;
+
+    //Camera streaming thread ID
+    pthread_t           thread_id;
 
     //Initialize Variables
     yes               = 1;
@@ -78,7 +91,7 @@ int main(int argc, char *argv[])
 
     clientfd = accept(servfd, (struct sockaddr*)&their_addr,&addrsize);
 
-    char *their_ip = inet_ntoa(((sockaddr_in*)&their_addr)->sin_addr);
+    their_ip = inet_ntoa(((sockaddr_in*)&their_addr)->sin_addr);
 
     cout << "Connection from " << their_ip << "!" << endl;
 
@@ -163,15 +176,19 @@ int main(int argc, char *argv[])
         //Pressing button 1 starts video stream
         if( ( pad.bPos[1] != 0 ) && ( camera_streaming == FALSE ) )
         {
-            //Fork process and call camera stream
-            camera_streaming = TRUE;
-            pid_t process;
-            process = fork();
+            //Start camera streaming thread
+            int error = 0;
+            error = pthread_create( &thread_id, NULL, &open_camera, NULL );
 
-            if( process == 0 )
+            if( error != 0 )
             {
-                sprintf( servo_str, "sh `raspivid -t 0 -fps 25 -hf -vf -w 1280 -h 720 -b 10000000 -o - | nc -u %s 5001 &`", their_ip );
-                system( servo_str );
+                camera_streaming = FALSE;
+                cout << "Error opening camera" << endl;
+            }
+            else
+            {
+                camera_streaming = TRUE;
+                cout << "Camera thread started" << endl;
             }
         }
 
@@ -196,7 +213,7 @@ int main(int argc, char *argv[])
         fflush( servoblaster );
 
         //Receive the next packet
-        numbytes = recv(clientfd,&pad,sizeof pad,0);
+        numbytes = recv( clientfd, &pad, sizeof pad, MSG_WAITALL );
     }
 
     printf("numbytes = %d\r\n", numbytes);
