@@ -96,6 +96,9 @@ int main(int argc, char *argv[])
     cout << "Connection from " << their_ip << "!" << endl;
 
     //Open servoblaster
+    system( "./servod" );
+
+    //Open servoblaster device node for writing
     servoblaster = fopen( "/dev/servoblaster", "w" );
 
     if( servoblaster == NULL )
@@ -224,4 +227,7 @@ int main(int argc, char *argv[])
     system( "echo 4=50\% > /dev/servoblaster" );
 
     close(clientfd);
+
+    //Kill servoblaster
+    system( "killall -9 servod" );
 }
